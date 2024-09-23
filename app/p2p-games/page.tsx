@@ -122,6 +122,7 @@ export default function P2PGamesPage() {
   }
 
   const handleJoinGame = async (roomId: string, wagerAmount: number) => {
+    
     if (wagerAmount > balance) {
       showToast('Insufficient balance', 'You do not have enough XCoin to join this game', 'destructive')
       return

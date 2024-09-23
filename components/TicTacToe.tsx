@@ -56,7 +56,7 @@ const TicTacToe: React.FC<TicTacToeProps> = ({ roomId, playerId, onGameEnd, onEn
     if (currentPlayer !== playerId || board[i]) return;
 
     const newBoard = [...board];
-    newBoard[i] = currentPlayer === playerId ? 'X' : 'O';
+    newBoard[i] = playerId === currentPlayer ? 'X' : 'O';
 
     const winner = calculateWinner(newBoard);
     const isDraw = !newBoard.includes(null);
