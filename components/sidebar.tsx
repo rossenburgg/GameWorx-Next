@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Home, Trophy, Users, BarChart2, LayoutDashboard, Gamepad2Icon, Wallet2, Wallet2Icon, VideoIcon, PiggyBankIcon } from 'lucide-react'
+import { Home, Trophy, Users, BarChart2, LayoutDashboard, Gamepad2Icon, Wallet2, Wallet2Icon, VideoIcon, PiggyBankIcon, TicketIcon  } from 'lucide-react'
 import { BuildingStorefrontIcon } from '@heroicons/react/24/solid'
 
 const sidebarItems = [
@@ -17,10 +17,11 @@ const sidebarItems = [
     { name: 'Teams', href: '/teams', icon: Users },
     { name: 'Matches', href: '/matches', icon: Gamepad2Icon },
     { name: 'Leaderboard', href: '/leaderboard', icon: BarChart2 },
-    { name: 'Live', href: '/live', icon: VideoIcon },
+    { name: 'Stream', href: '/stream', icon: VideoIcon },
     { name: 'Daily Rewards', href: '/daily-rewards', icon: PiggyBankIcon },
 
     { name: 'Store', href: '/store', icon: BuildingStorefrontIcon },
+    { name: 'P2P-Games', href:'/p2p-games', icon: TicketIcon}
 
 
   ]

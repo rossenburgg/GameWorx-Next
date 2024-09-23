@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import 'stream-chat-react/dist/css/v2/index.css'
 import { ThemeProvider } from "@/components/theme-provider"
 import { MainNav } from "@/components/main-nav"
 import { UserNav } from "@/components/user-nav"
@@ -9,6 +10,8 @@ import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { Sidebar } from "@/components/sidebar";
 import Script from "next/script";
+import { BalanceProvider } from '@/contexts/BalanceContext';
+
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -49,6 +52,8 @@ export default async function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
+              <BalanceProvider>
+
           <div className="flex h-screen">
             <aside className="w-16 border-r bg-background">
               <Sidebar />
@@ -68,6 +73,7 @@ export default async function RootLayout({
             </div>
           </div>
           <Toaster />
+          </BalanceProvider>
         </ThemeProvider>
       </body>
     </html>

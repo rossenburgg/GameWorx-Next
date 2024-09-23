@@ -71,17 +71,21 @@ export default function WalletPage() {
       .from('wallets')
       .select('balance')
       .eq('user_id', userId)
-      .single()
-
+      .single();
+  
     if (error) {
-      console.error('Error fetching wallet balance:', error)
+      console.error('Error fetching wallet balance:', error);
       toast({
         title: "Error",
         description: "Failed to fetch wallet balance",
         variant: "destructive",
-      })
+      });
+    } else if (data && typeof data.balance === 'number') {
+      setBalance(data.balance);
+      console.log('Wallet balance updated:', data.balance);
     } else {
-      setBalance(data.balance)
+      console.warn('Unexpected wallet data:', data);
+      setBalance(null);
     }
   }
 
@@ -197,6 +201,37 @@ export default function WalletPage() {
     }
   };
 
+  const calculateXC = (ghs: number) => {
+    if (ghs < 10) {
+      return 0;
+    }
+    
+    const conversionTable = [
+      { ghs: 10, xc: 100 },
+      { ghs: 20, xc: 210 },
+      { ghs: 50, xc: 550 },
+      { ghs: 100, xc: 1200 },
+      { ghs: 200, xc: 2600 },
+      { ghs: 500, xc: 6500 }
+    ];
+  
+    let lower = conversionTable[0];
+    let upper = conversionTable[conversionTable.length - 1];
+  
+    for (let i = 0; i < conversionTable.length - 1; i++) {
+      if (ghs >= conversionTable[i].ghs && ghs < conversionTable[i + 1].ghs) {
+        lower = conversionTable[i];
+        upper = conversionTable[i + 1];
+        break;
+      }
+    }
+  
+    const ratio = (ghs - lower.ghs) / (upper.ghs - lower.ghs);
+    const xc = lower.xc + ratio * (upper.xc - lower.xc);
+  
+    return Math.round(xc);
+  };
+
   const handleTopUp = async (reference: string) => {
     try {
       const response = await fetch('/api/verify-payment', {
@@ -210,84 +245,63 @@ export default function WalletPage() {
           userId: user.id,
         }),
       });
-
+  
       const result = await response.json();
-
+  
       if (response.ok && result.success) {
-        await fetchWalletBalance(user.id);
+        if (result.newBalance !== undefined) {
+          const newBalance = typeof result.newBalance === 'number' ? result.newBalance : parseFloat(result.newBalance);
+          
+          if (!isNaN(newBalance)) {
+            setBalance(newBalance);
+          } else {
+            console.warn('Received non-numeric balance:', result.newBalance);
+            await fetchWalletBalance(user.id);
+          }
+        } else {
+          console.log('Balance not received in API response, fetching latest balance...');
+          await fetchWalletBalance(user.id);
+        }
+  
         await fetchTransactionsAndWithdrawals();
+  
+        const xcAmount = result.xcAmount || calculateXC(Number(amount));
+  
         toast({
           title: "Success",
-          description: `Your wallet has been topped up with ${amount} Xcoin!`,
+          description: `Your wallet has been topped up with ${xcAmount.toFixed(2)} Xcoin!`,
           variant: "default",
           duration: 5000,
         });
         setAmount('');
       } else {
-        throw new Error(result.error || 'Failed to verify payment');
+        throw new Error(result.message || 'Failed to verify payment');
       }
     } catch (error) {
       console.error('Error verifying payment:', error);
       toast({
         title: "Error",
-        description: "Failed to verify payment. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to verify payment. Please try again.",
         variant: "destructive",
       });
     }
-  }
+  };
 
-  
+  const formatBalance = (value: number | null | undefined) => {
+    if (value === null || value === undefined) {
+      return 'Loading...';
+    }
+    return `${value.toFixed(2)} XC`;
+  };
 
-  const SkeletonBalanceCard = () => (
-    <Card>
-      <CardHeader>
-        <Skeleton className="h-8 w-[200px]" />
-      </CardHeader>
-      <CardContent>
-        <Skeleton className="h-12 w-[150px]" />
-        <div className="mt-4">
-          <Skeleton className="h-10 w-[100px]" />
-        </div>
-      </CardContent>
-    </Card>
-  )
 
-  const SkeletonTopUpCard = () => (
-    <Card className="mt-4">
-      <CardHeader>
-        <Skeleton className="h-8 w-[150px]" />
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-[100px]" />
-        </div>
-      </CardContent>
-    </Card>
-  )
-
-  const SkeletonTransactionTable = () => (
-    <Card className="mt-4">
-      <CardHeader>
-        <Skeleton className="h-8 w-[200px]" />
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          {[...Array(5)].map((_, index) => (
-            <Skeleton key={index} className="h-12 w-full" />
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  )
 
   if (loading) {
     return (
       <div className="container mx-auto p-4">
         <h1 className="text-2xl font-bold mb-4">Your Wallet</h1>
-        <SkeletonBalanceCard />
-        <SkeletonTopUpCard />
-        <SkeletonTransactionTable />
+        <Skeleton className="h-32 w-full mb-4" />
+        <Skeleton className="h-64 w-full" />
       </div>
     )
   }
@@ -300,11 +314,12 @@ export default function WalletPage() {
           <CardTitle>Xcoin Balance</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-4xl font-bold">{balance} XC</p>
+          <p className="text-4xl font-bold">
+            {formatBalance(balance)}
+          </p>
           <div className="mt-4 flex space-x-2">
-            <WithdrawButton balance={balance} onWithdraw={handleWithdraw} />
-            <P2PTransferModal onTransfer={handleP2PTransfer} balance={balance} />
-
+          <WithdrawButton balance={balance ?? 0} onWithdraw={handleWithdraw} />
+          <P2PTransferModal onTransfer={handleP2PTransfer} balance={balance ?? 0} />
           </div>
         </CardContent>
       </Card>
@@ -325,12 +340,17 @@ export default function WalletPage() {
                 placeholder="Enter amount"
               />
             </div>
+            {amount && Number(amount) >= 10 ? (
+                <p>You will receive approximately {calculateXC(parseFloat(amount))} XC</p>
+              ) : (
+                <p>Minimum deposit amount is 10 GHS</p>
+              )}
             <PaystackButton
               amount={Number(amount)}
               email={user?.email || ''}
               userId={user?.id || ''}
               onPaymentSuccess={handleTopUp}
-              disabled={!user || !amount || Number(amount) <= 0}
+              disabled={!user || !amount || Number(amount) < 10}
             />
           </div>
         </CardContent>
@@ -357,7 +377,7 @@ export default function WalletPage() {
                   onClick={() => handleTransactionClick(transaction)}
                   className="cursor-pointer hover:bg-gray-600"
                 >
-                  <TableCell>{Math.abs(transaction.amount)} Xcoin</TableCell>
+                  <TableCell>{Math.abs(transaction.amount).toFixed(2)} Xcoin</TableCell>
                   <TableCell>{transaction.type}</TableCell>
                   <TableCell>
                     <span className={`px-2 py-1 rounded-full text-sm ${
@@ -413,7 +433,7 @@ export default function WalletPage() {
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="amount" className="text-right">Amount</Label>
-              <div className="col-span-3">{Math.abs(selectedTransaction?.amount)} Xcoin</div>
+              <div className="col-span-3">{Math.abs(selectedTransaction?.amount).toFixed(2)} Xcoin</div>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="type" className="text-right">Type</Label>

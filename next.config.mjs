@@ -24,6 +24,10 @@ const nextConfig = {
                 protocol: 'https',
                 hostname: 'cdn.openart.ai',
               },
+              {
+                protocol: 'https',
+                hostname: 'i.pravatar.cc',
+              },
          ],
          
     },

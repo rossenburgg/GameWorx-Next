@@ -11,13 +11,13 @@ const newsItems = [
     id: 1,
     title: "Beyond Weekly Challenge",
     description: "Check out all the latest improvements to craft.me",
-    imageUrl: "https://images.hdqwalls.com/download/pubg-faceit-a0-2560x1440.jpg"
+    imageUrl: "https://images.hdqwalls.com/download/fragpunk-nh-1920x1080.jpg",
   },
   {
     id: 2,
     title: "New Way to Play",
     description: "Discover exciting new game modes",
-    imageUrl: "https://images.hdqwalls.com/download/fortnite-x-prowler-c7-1920x1200.jpg"
+    imageUrl: "https://images.hdqwalls.com/download/pubg-faceit-a0-2560x1440.jpg"
   },
   {
     id: 3,
@@ -35,7 +35,7 @@ const newsItems = [
     id: 5,
     title: "The International 2024",
     description: "The biggest Dota 2 tournament of the year",
-    imageUrl: "https://images.hdqwalls.com/download/fragpunk-nh-1920x1080.jpg"
+    imageUrl: "https://images.hdqwalls.com/download/fortnite-x-prowler-c7-1920x1200.jpg"
   },
 ]
 

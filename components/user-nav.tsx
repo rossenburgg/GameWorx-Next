@@ -12,39 +12,23 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { LoginModal } from './login-modal'
 import { LayoutDashboard, LogOut, Menu } from 'lucide-react'
 import { NotificationIcon } from './NotificationIcon'
+import { useBalance } from '@/contexts/BalanceContext'
 
 export function UserNav() {
   const [user, setUser] = useState(null)
-  const [balance, setBalance] = useState(0)
+  const { balance } = useBalance() // Use the balance from context
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null)
-      if (session?.user) {
-        fetchBalance(session.user.id)
-      }
     })
 
     return () => {
       authListener.subscription.unsubscribe()
     }
   }, [])
-
-  const fetchBalance = async (userId: string) => {
-    const { data, error } = await supabase
-      .from('wallets')
-      .select('balance')
-      .eq('user_id', userId)
-      .single()
-
-    if (error) {
-      console.error('Error fetching balance:', error)
-    } else {
-      setBalance(data.balance)
-    }
-  }
 
   const handleSignOut = async () => {
     const { error } = await supabase.auth.signOut()
@@ -63,7 +47,7 @@ export function UserNav() {
   return (
     <div className="flex items-center space-x-2">
       <div className="hidden md:block">
-        <span className="text-sm font-medium">{balance} Xcoin</span>
+        <span className="text-sm font-medium">{balance.toFixed(2)} Xcoin</span>
       </div>
       <NotificationIcon />
       <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
@@ -83,7 +67,7 @@ export function UserNav() {
                 {user.email}
               </p>
               <p className="text-xs leading-none text-muted-foreground md:hidden">
-                {balance} Xcoin
+                {balance.toFixed(2)} Xcoin
               </p>
             </div>
           </DropdownMenuLabel>

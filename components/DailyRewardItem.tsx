@@ -1,6 +1,7 @@
 // components/DailyRewardItem.tsx
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
+import { CountdownButton } from './CountdownButton'
 
 interface DailyRewardItemProps {
   day: number

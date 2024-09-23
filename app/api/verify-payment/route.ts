@@ -1,93 +1,111 @@
-// app/api/verify-payment/route.ts
-import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import axios from 'axios';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-console.log('API: Environment variables check');
-console.log('SUPABASE_URL:', SUPABASE_URL ? 'Set' : 'Not set');
-console.log('SUPABASE_ANON_KEY:', SUPABASE_ANON_KEY ? 'Set' : 'Not set');
-console.log('PAYSTACK_SECRET_KEY:', PAYSTACK_SECRET_KEY ? 'Set' : 'Not set');
+function calculateXC(ghs: number): number {
+  if (ghs < 10) {
+    return 0; // Return 0 for amounts less than 10 GHS
+  }
+  
+  const conversionTable = [
+    { ghs: 10, xc: 100 },
+    { ghs: 20, xc: 210 },
+    { ghs: 50, xc: 550 },
+    { ghs: 100, xc: 1200 },
+    { ghs: 200, xc: 2600 },
+    { ghs: 500, xc: 6500 }
+  ];
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  let lower = conversionTable[0];
+  let upper = conversionTable[conversionTable.length - 1];
+
+  for (let i = 0; i < conversionTable.length - 1; i++) {
+    if (ghs >= conversionTable[i].ghs && ghs < conversionTable[i + 1].ghs) {
+      lower = conversionTable[i];
+      upper = conversionTable[i + 1];
+      break;
+    }
+  }
+
+  const ratio = (ghs - lower.ghs) / (upper.ghs - lower.ghs);
+  const xc = lower.xc + ratio * (upper.xc - lower.xc);
+
+  return Math.round(xc);
+}
 
 export async function POST(request: Request) {
-  console.log('API: Received POST request');
   try {
     const { reference, amount, userId } = await request.json();
-    console.log('API: Request body', { reference, amount, userId });
 
-    // Verify the payment with Paystack
-    console.log('API: Verifying payment with Paystack');
-    const verifyResponse = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
-        'Content-Type': 'application/json',
-      },
-    });
+    const ghsAmount = parseFloat(amount);
 
-    console.log('API: Paystack verification response status:', verifyResponse.status);
-    const verifyData = await verifyResponse.json();
-    console.log('API: Paystack verification response:', verifyData);
-
-    if (!verifyResponse.ok || !verifyData.status || verifyData.data.status !== 'success') {
-      console.error('API: Payment verification failed');
-      
-      // Record failed transaction
-      await supabase.from('transactions').insert({
-        user_id: userId,
-        amount: amount,
-        type: 'top_up',
-        status: 'failed',
-        description: 'Paystack top-up failed',
-        reference: reference
-      });
-
-      return NextResponse.json({ success: false, error: 'Payment verification failed' }, { status: 400 });
+    // Check if the amount is less than 10 GHS
+    if (ghsAmount < 10) {
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Minimum deposit amount is 10 GHS' 
+      }, { status: 400 });
     }
 
-    // Payment is successful, update the database
-    console.log('API: Updating wallet balance');
-    const { data: walletData, error: walletError } = await supabase.rpc('increment_balance', { 
-      p_user_id: userId, 
-      p_amount: amount 
-    });
-
-    console.log('API: Wallet update result:', { data: walletData, error: walletError });
-
-    if (walletError) {
-      console.error('API: Failed to update wallet:', walletError);
-      return NextResponse.json({ success: false, error: 'Failed to update wallet' }, { status: 500 });
-    }
-
-    // Record successful transaction
-    console.log('API: Recording transaction');
-    const { data: transactionData, error: transactionError } = await supabase
+    // Check if this transaction has already been processed
+    const { data: existingTransaction } = await supabase
       .from('transactions')
-      .insert({
-        user_id: userId,
-        amount: amount,
-        type: 'top_up',
-        status: 'success',
-        description: 'Paystack top-up successful',
-        reference: reference
-      });
+      .select('id')
+      .eq('reference', reference)
+      .single();
 
-    console.log('API: Transaction record result:', { data: transactionData, error: transactionError });
-
-    if (transactionError) {
-      console.error('API: Error recording transaction:', transactionError);
-      // We don't return here because the balance was already updated
+    if (existingTransaction) {
+      return NextResponse.json({
+        success: false,
+        message: 'This transaction has already been processed'
+      }, { status: 400 });
     }
 
-    console.log('API: Payment process completed successfully');
-    return NextResponse.json({ success: true, newBalance: walletData });
+    // Verify payment with Paystack
+    const paystackResponse = await axios.get(
+      `https://api.paystack.co/transaction/verify/${reference}`,
+      {
+        headers: {
+          Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+        },
+      }
+    );
+
+    if (paystackResponse.data.status !== true || paystackResponse.data.data.status !== 'success') {
+      return NextResponse.json({ success: false, message: 'Payment verification failed' }, { status: 400 });
+    }
+
+    const xcAmount = calculateXC(ghsAmount);
+
+    // Use a transaction to ensure atomicity
+    const { data, error } = await supabase.rpc('process_deposit', {
+      p_user_id: userId,
+      p_amount: xcAmount,
+      p_ghs_amount: ghsAmount,
+      p_reference: reference
+    });
+
+    if (error) {
+      console.error('Error processing deposit:', error);
+      return NextResponse.json({ success: false, message: 'Failed to process deposit' }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Payment verified and wallet updated successfully',
+      xcAmount: xcAmount,
+      newBalance: data.new_balance, 
+    });
 
   } catch (error) {
-    console.error('API: Error in payment verification process:', error);
-    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
+    console.error('Error in payment verification process:', error);
+    return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
   }
 }

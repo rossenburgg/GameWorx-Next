@@ -147,3 +147,34 @@ body {
   scrollbar-width: thin;
   scrollbar-color: #4b5563 #1f2937;
 }
+
+/* app/globals.css */
+.str-chat {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+
+
+.str-chat__channel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  
+}
+
+.str-chat__channel-list {
+  height: 100%;
+  overflow-y: auto;
+}
+
+.str-chat__message-list-scroll {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.str-chat__input-flat {
+  min-height: 60px;
+}
+
