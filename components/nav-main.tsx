@@ -1,7 +1,8 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
-import { ChevronRight, Search, type LucideIcon } from "lucide-react"
+import { ChevronRight, Search, Menu, X, type LucideIcon } from "lucide-react"
 
 import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
@@ -15,6 +16,7 @@ import {
   Drawer,
   DrawerContent,
   DrawerTrigger,
+  DrawerClose,
 } from "@/components/ui/drawer"
 import { Input } from "@/components/ui/input"
 import {
@@ -39,9 +41,16 @@ export function NavMain({
       url: string
     }[]
   }[]
-  searchResults: React.ComponentProps<typeof SidebarSearch>["results"]
+  searchResults: {
+    title: string
+    teaser: string
+    url: string
+  }[]
 } & React.ComponentProps<"ul">) {
-  return (
+  const isMobile = useIsMobile()
+  const [isOpen, setIsOpen] = useState(false)
+
+  const NavContent = () => (
     <ul className={cn("grid gap-0.5", className)}>
       <li>
         <SidebarSearch results={searchResults} />
@@ -53,41 +62,74 @@ export function NavMain({
               <Link
                 href={item.url}
                 className="min-w-8 flex h-8 flex-1 items-center gap-2 overflow-hidden rounded-md px-1.5 text-sm font-medium outline-none ring-ring transition-all hover:bg-accent hover:text-accent-foreground focus-visible:ring-2"
+                onClick={() => isMobile && setIsOpen(false)}
               >
                 <item.icon className="h-4 w-4 shrink-0" />
                 <div className="flex flex-1 overflow-hidden">
                   <div className="line-clamp-1 pr-6">{item.title}</div>
                 </div>
               </Link>
-              <CollapsibleTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="absolute right-1 h-6 w-6 rounded-md p-0 ring-ring transition-all focus-visible:ring-2 data-[state=open]:rotate-90"
-                >
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  <span className="sr-only">Toggle</span>
-                </Button>
-              </CollapsibleTrigger>
+              {item.items && (
+                <CollapsibleTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="absolute right-1 h-6 w-6 rounded-md p-0 ring-ring transition-all focus-visible:ring-2 data-[state=open]:rotate-90"
+                  >
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    <span className="sr-only">Toggle</span>
+                  </Button>
+                </CollapsibleTrigger>
+              )}
             </div>
-            <CollapsibleContent className="px-4 py-0.5">
-              <ul className="grid border-l px-2">
-                {item.items?.map((subItem) => (
-                  <li key={subItem.title}>
-                    <Link
-                      href={subItem.url}
-                      className="min-w-8 flex h-8 items-center gap-2 overflow-hidden rounded-md px-2 text-sm font-medium text-muted-foreground ring-ring transition-all hover:bg-accent hover:text-accent-foreground focus-visible:ring-2"
-                    >
-                      <div className="line-clamp-1">{subItem.title}</div>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </CollapsibleContent>
+            {item.items && (
+              <CollapsibleContent className="px-4 py-0.5">
+                <ul className="grid border-l px-2">
+                  {item.items.map((subItem) => (
+                    <li key={subItem.title}>
+                      <Link
+                        href={subItem.url}
+                        className="min-w-8 flex h-8 items-center gap-2 overflow-hidden rounded-md px-2 text-sm font-medium text-muted-foreground ring-ring transition-all hover:bg-accent hover:text-accent-foreground focus-visible:ring-2"
+                        onClick={() => isMobile && setIsOpen(false)}
+                      >
+                        <div className="line-clamp-1">{subItem.title}</div>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </CollapsibleContent>
+            )}
           </li>
         </Collapsible>
       ))}
     </ul>
   )
+
+  if (isMobile) {
+    return (
+      <Drawer open={isOpen} onOpenChange={setIsOpen}>
+        <DrawerTrigger asChild>
+          <Button variant="outline" size="icon">
+            <Menu className="h-4 w-4" />
+          </Button>
+        </DrawerTrigger>
+        <DrawerContent>
+          <div className="p-4">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold">Menu</h2>
+              <DrawerClose asChild>
+                <Button variant="ghost" size="icon">
+                  <X className="h-4 w-4" />
+                </Button>
+              </DrawerClose>
+            </div>
+            <NavContent />
+          </div>
+        </DrawerContent>
+      </Drawer>
+    )
+  }
+
+  return <NavContent />
 }
 
 function SidebarSearch({
@@ -115,7 +157,7 @@ function SidebarSearch({
             <div className="border-b p-2.5">
               <Input
                 type="search"
-                placeholder="Search..."
+                placeholder="Search..sss."
                 className="h-8 rounded-sm shadow-none focus-visible:ring-0"
               />
             </div>

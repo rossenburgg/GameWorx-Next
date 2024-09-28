@@ -81,7 +81,7 @@ export function LeaguesList() {
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {[...Array(4)].map((_, index) => (
           <LeagueSkeleton key={index} />
         ))}
@@ -89,59 +89,59 @@ export function LeaguesList() {
     )
   }
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
       {leagues.map((league) => (
-          <div key={league.id} className="bg-gray-800 rounded-lg overflow-hidden">
-          <div className="p-4">
+        <div key={league.id} className="bg-gray-800 rounded-lg overflow-hidden">
+          <div className="p-2 sm:p-4">
             <div className="flex items-center mb-2">
               <Image
                 src={league.logo_url}
                 alt={league.name}
-                width={50}
-                height={50}
-                className="rounded-md mr-3"
+                width={40}
+                height={40}
+                className="rounded-md mr-2 sm:mr-3"
               />
               <div>
-                <p className="text-xs text-gray-400">Ending at {league.end_date}</p>
-                <h3 className="text-lg font-bold">{league.name}</h3>
+                <p className="text-xs text-gray-400 hidden sm:block">Ending at {league.end_date}</p>
+                <h3 className="text-sm sm:text-lg font-bold">{league.name}</h3>
               </div>
             </div>
-            <div className="flex space-x-2 mb-4">
-                <span className="bg-gray-700 text-xs px-2 py-1 rounded">{league.game}</span>
-                <span className="bg-gray-700 text-xs px-2 py-1 rounded">{league.platform}</span>
-                <span className="bg-gray-700 text-xs px-2 py-1 rounded">{league.type}</span>
+            <div className="flex flex-wrap gap-1 mb-2 sm:mb-4">
+              <span className="bg-gray-700 text-xs px-1 py-0.5 rounded">{league.game}</span>
+              <span className="bg-gray-700 text-xs px-1 py-0.5 rounded">{league.platform}</span>
+              <span className="bg-gray-700 text-xs px-1 py-0.5 rounded">{league.type}</span>
+            </div>
+            <div className="grid grid-cols-3 gap-1 sm:gap-2 text-xs sm:text-sm mb-2 sm:mb-4">
+              <div>
+                <p className="text-gray-400 flex items-center"><Trophy size={12} className="mr-1" /> Prize</p>
+                <p className="font-bold">${league.prize_pool.toLocaleString()}</p>
               </div>
-              <div className="grid grid-cols-3 gap-2 text-sm mb-4">
-                <div>
-                  <p className="text-gray-400 flex items-center"><Trophy size={16} className="mr-1" /> Prize Pool</p>
-                  <p className="font-bold">${league.prize_pool.toLocaleString()}</p>
-                </div>
-                <div>
-                  <p className="text-gray-400 flex items-center"><Users size={16} className="mr-1" /> Team</p>
-                  <p className="font-bold">{league.team_size}</p>
-                </div>
-                <div>
-                  <p className="text-gray-400 flex items-center"><UserSquare2 size={16} className="mr-1" /> Participants</p>
-                  <p className="font-bold">{league.participants}</p>
-                </div>
+              <div>
+                <p className="text-gray-400 flex items-center"><Users size={12} className="mr-1" /> Team</p>
+                <p className="font-bold">{league.team_size}</p>
               </div>
+              <div>
+                <p className="text-gray-400 flex items-center"><UserSquare2 size={12} className="mr-1" /> Players</p>
+                <p className="font-bold">{league.participants}</p>
+              </div>
+            </div>
           </div>
-          <div className="bg-gray-700 p-4 flex items-center justify-between">
-            <div className="flex items-center">
+          <div className="bg-gray-700 p-2 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between">
+            <div className="flex items-center mb-2 sm:mb-0">
               <Image
                 src={league.organizer.avatar}
                 alt={league.organizer.name}
-                width={30}
-                height={30}
-                className="rounded-full mr-2"
+                width={20}
+                height={20}
+                className="rounded-full mr-1 sm:mr-2"
               />
-              <span className="text-sm">
-                Organized by <span className="font-bold">{league.organizer.name}</span>
+              <span className="text-xs sm:text-sm">
+                By <span className="font-bold">{league.organizer.name}</span>
               </span>
             </div>
             <Button 
               variant={league.status === "Registration" ? "blue" : "green"}
-              className="px-4 py-2"
+              className="text-xs px-2 py-1 sm:px-4 sm:py-2 w-full sm:w-auto"
             >
               {league.status}
             </Button>

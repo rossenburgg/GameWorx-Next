@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 import Link from 'next/link'
 
 // Dummy data for registered events and upcoming matches
@@ -32,8 +33,49 @@ export function UserDashboard() {
     }, 1000)
   }, [])
 
+  const SkeletonRow = ({ cols }) => (
+    <TableRow>
+      {[...Array(cols)].map((_, i) => (
+        <TableCell key={i}>
+          <Skeleton className="h-6 w-full" />
+        </TableCell>
+      ))}
+    </TableRow>
+  )
+
+  const CardSkeleton = ({ title, rows }) => (
+    <Card>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              {[...Array(4)].map((_, i) => (
+                <TableHead key={i}>
+                  <Skeleton className="h-6 w-20" />
+                </TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {[...Array(rows)].map((_, i) => (
+              <SkeletonRow key={i} cols={4} />
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  )
+
   if (loading) {
-    return <div>Loading dashboard...</div>
+    return (
+      <div className="space-y-8">
+        <CardSkeleton title="My Registered Events" rows={2} />
+        <CardSkeleton title="Upcoming Matches" rows={2} />
+      </div>
+    )
   }
 
   return (

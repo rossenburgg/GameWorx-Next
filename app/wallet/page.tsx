@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import PaystackButton from '@/components/PaystackButton'
 import WithdrawButton from '@/components/WithdrawButton'
 import { P2PTransferModal } from '@/components/P2PTransferModal'
+import { SupabaseClient } from '@supabase/supabase-js'
 
 import {
   Table,
@@ -48,15 +49,33 @@ export default function WalletPage() {
   const { toast } = useToast()
 
   useEffect(() => {
-    fetchUserAndWalletBalance()
-  }, [])
+    let subscription: ReturnType<SupabaseClient['channel']> | null = null;
+  
+    async function setup() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        setUser(user)
+        subscription = await fetchWalletBalance(user.id)
+      }
+      setLoading(false)
+    }
+  
+    setup()
 
+    return () => {
+      if (subscription) {
+        supabase.removeChannel(subscription)
+      }
+    }
+  }, [])
+  
   useEffect(() => {
     if (user) {
       fetchTransactionsAndWithdrawals()
     }
   }, [user, currentPage])
 
+  
   async function fetchUserAndWalletBalance() {
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
@@ -67,11 +86,12 @@ export default function WalletPage() {
   }
 
   async function fetchWalletBalance(userId: string) {
+    console.log('Fetching wallet balance for user:', userId);
+  
     const { data, error } = await supabase
       .from('wallets')
       .select('balance')
-      .eq('user_id', userId)
-      .single();
+      .eq('user_id', userId);
   
     if (error) {
       console.error('Error fetching wallet balance:', error);
@@ -80,14 +100,46 @@ export default function WalletPage() {
         description: "Failed to fetch wallet balance",
         variant: "destructive",
       });
-    } else if (data && typeof data.balance === 'number') {
-      setBalance(data.balance);
-      console.log('Wallet balance updated:', data.balance);
+    } else if (data && Array.isArray(data) && data.length > 0) {
+      const walletData = data[0];
+      console.log('Fetched wallet data:', walletData);
+      if (typeof walletData.balance === 'number') {
+        setBalance(walletData.balance);
+        console.log('Wallet balance updated:', walletData.balance);
+      } else {
+        console.warn('Unexpected balance data type:', walletData.balance);
+        setBalance(null);
+      }
     } else {
       console.warn('Unexpected wallet data:', data);
       setBalance(null);
     }
+  
+    // Set up real-time subscription
+    const channel = supabase.channel('custom-all-channel')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'wallets',
+          filter: `user_id=eq.${userId}`
+        },
+        (payload) => {
+          console.log('Received real-time update:', payload);
+          if (typeof payload.new.balance === 'number') {
+            setBalance(payload.new.balance);
+            console.log('Real-time wallet balance update:', payload.new.balance);
+          } else {
+            console.warn('Unexpected real-time balance data:', payload.new.balance);
+          }
+        }
+      )
+      .subscribe();
+  
+    return channel;
   }
+
 
   const fetchTransactionsAndWithdrawals = useCallback(async () => {
     // Fetch total count of transactions and withdrawal requests
@@ -357,70 +409,67 @@ export default function WalletPage() {
       </Card>
       
       <Card className="mt-4">
-        <CardHeader>
-          <CardTitle>Transaction History</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Amount</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Date</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {transactions.map((transaction) => (
-                <TableRow 
-                  key={transaction.id} 
-                  onClick={() => handleTransactionClick(transaction)}
-                  className="cursor-pointer hover:bg-gray-600"
-                >
-                  <TableCell>{Math.abs(transaction.amount).toFixed(2)} Xcoin</TableCell>
-                  <TableCell>{transaction.type}</TableCell>
-                  <TableCell>
-                    <span className={`px-2 py-1 rounded-full text-sm ${
-                      transaction.status === 'success' ? 'bg-green-200 text-green-800' :
-                      transaction.status === 'failed' ? 'bg-red-200 text-red-800' :
-                      'bg-yellow-200 text-yellow-800'
-                    }`}>
-                      {transaction.status}
-                    </span>
-                  </TableCell>
-                  <TableCell>{new Date(transaction.created_at).toLocaleString()}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          <Pagination className="mt-4 hover:cursor-pointer">
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious 
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                />
-              </PaginationItem>
-              {[...Array(totalPages)].map((_, i) => (
-                <PaginationItem key={i}>
-                  <PaginationLink 
-                    onClick={() => setCurrentPage(i + 1)}
-                    isActive={currentPage === i + 1}
-                  >
-                    {i + 1}
-                  </PaginationLink>
-                </PaginationItem>
-              ))}
-              <PaginationItem>
-                <PaginationNext 
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
-        </CardContent>
-      </Card>
+  <CardHeader>
+    <CardTitle>Transaction History</CardTitle>
+  </CardHeader>
+  <CardContent className="p-0">
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-[30%]">Amount</TableHead>
+            <TableHead className="w-[25%]">Type</TableHead>
+            <TableHead className="w-[20%]">Status</TableHead>
+            <TableHead className="w-[25%]">Date</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {transactions.map((transaction) => (
+            <TableRow 
+              key={transaction.id} 
+              onClick={() => handleTransactionClick(transaction)}
+              className="cursor-pointer hover:bg-gray-600"
+            >
+              <TableCell className="font-medium">{Math.abs(transaction.amount).toFixed(2)} Xcoin</TableCell>
+              <TableCell>{transaction.type}</TableCell>
+              <TableCell>
+                <span className={`px-2 py-1 rounded-full text-xs ${
+                  transaction.status === 'success' ? 'bg-green-200 text-green-800' :
+                  transaction.status === 'failed' ? 'bg-red-200 text-red-800' :
+                  'bg-yellow-200 text-yellow-800'
+                }`}>
+                  {transaction.status}
+                </span>
+              </TableCell>
+              <TableCell className="text-xs">{new Date(transaction.created_at).toLocaleDateString()}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+    <div className="py-4 px-2">
+      <Pagination>
+        <PaginationContent>
+          <PaginationItem>
+            <PaginationPrevious 
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+            />
+          </PaginationItem>
+          <PaginationItem>
+            <PaginationLink isActive>{currentPage}</PaginationLink>
+          </PaginationItem>
+          <PaginationItem>
+            <PaginationNext 
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+            />
+          </PaginationItem>
+        </PaginationContent>
+      </Pagination>
+    </div>
+  </CardContent>
+</Card>
 
       <Dialog open={!!selectedTransaction} onOpenChange={() => setSelectedTransaction(null)}>
         <DialogContent className="sm:max-w-[425px]">

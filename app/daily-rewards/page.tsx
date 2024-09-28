@@ -157,18 +157,17 @@ export default function DailyRewardsPage() {
     return <DailyRewardsSkeleton />
   }
 
-
-
   return (
     <div className="flex h-[calc(100vh-4rem)] bg-gray-900 text-white"> 
       <div className="flex-grow p-4 overflow-y-auto">
-      <h1 className="text-2xl font-bold mb-4">DAILY REWARDS</h1>
+
+        {isMobile && <FreeCaseDrop />}
         {isLoading ? (
           <div>Loading...</div>
         ) : rewards.length === 0 ? (
           <div>No rewards available at the moment.</div>
         ) : (
-          <div className="flex space-x-4 overflow-x-auto pb-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {rewards.map((reward) => (
               <DailyRewardItem
                 key={reward.day}
@@ -182,16 +181,15 @@ export default function DailyRewardsPage() {
             ))}
           </div>
         )}
-
         <PrivateDiscordAccount />
         <Cashback />
       </div>
-      <div className={`${isMobile ? 'h-1/2' : 'w-1/4 min-w-[300px]'} bg-gray-800 flex flex-col`}>
-      <div className="p-4">
-          <FreeCaseDrop />
-        </div>
-        <div className="md:flex-grow md:overflow-hidden">
-          {isChatOpen || window.innerWidth >= 768 ? (
+      {!isMobile && (
+        <div className="w-1/4 min-w-[300px] bg-gray-800 flex flex-col">
+          <div className="p-4">
+            <FreeCaseDrop />
+          </div>
+          <div className="flex-grow overflow-hidden">
             <StreamChatComponent 
               user={{
                 id: currentUser.id,
@@ -199,27 +197,46 @@ export default function DailyRewardsPage() {
                 image: currentUser.avatar_url
               }}
             />
-          ) : (
-            <button
-              onClick={() => setIsChatOpen(true)}
-              className="bg-purple-600 p-3 rounded-full shadow-lg md:hidden"
-            >
-              <MessageCircleIcon className="text-white text-2xl" />
-            </button>
-          )}
+          </div>
         </div>
-      </div>
+      )}
+      {isMobile && (
+        <>
+          <button
+            onClick={() => setIsChatOpen(!isChatOpen)}
+            className="fixed bottom-4 right-4 bg-purple-600 p-3 rounded-full shadow-lg z-10"
+          >
+            <MessageCircleIcon className="text-white text-2xl" />
+          </button>
+          {isChatOpen && (
+            <div className="fixed bottom-0 left-0 right-0 h-1/2 bg-gray-800 z-20 p-4 shadow-lg">
+              <button
+                onClick={() => setIsChatOpen(false)}
+                className="absolute top-2 right-2 text-white p-2"
+              >
+                <X size={24} />
+              </button>
+              <StreamChatComponent 
+                user={{
+                  id: currentUser.id,
+                  name: currentUser.username || currentUser.email,
+                  image: currentUser.avatar_url
+                }}
+              />
+            </div>
+          )}
+        </>
+      )}
     </div>
   )
 }
-
 
 function DailyRewardsSkeleton() {
   return (
     <div className="flex flex-col h-screen bg-gray-900 text-white p-4">
       <Skeleton className="h-8 w-48 mb-4" />
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {[...Array(8)].map((_, i) => (
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        {[...Array(10)].map((_, i) => (
           <Skeleton key={i} className="h-32 w-full" />
         ))}
       </div>

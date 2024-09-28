@@ -1,5 +1,4 @@
-// components/TicTacToe.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase'
 import { Button } from "@/components/ui/button"
 
@@ -12,8 +11,36 @@ interface TicTacToeProps {
 
 const TicTacToe: React.FC<TicTacToeProps> = ({ roomId, playerId, onGameEnd, onEndGame }) => {
   const [board, setBoard] = useState(Array(9).fill(null));
-  const [currentPlayer, setCurrentPlayer] = useState<string | null>(null);
-  const [opponentId, setOpponentId] = useState<string | null>(null);
+  const [playerSymbol, setPlayerSymbol] = useState<'X' | 'O' | null>(null);
+  const [creatorId, setCreatorId] = useState<string | null>(null);
+  const [gameEnded, setGameEnded] = useState(false);
+  
+  const isPlayerTurn = useMemo(() => {
+    const xCount = board.filter(cell => cell === 'X').length;
+    const oCount = board.filter(cell => cell === 'O').length;
+    return (playerSymbol === 'X' && xCount === oCount) || (playerSymbol === 'O' && xCount > oCount);
+  }, [board, playerSymbol]);
+
+useEffect(() => {
+  const subscription = supabase
+    .channel(`room:${roomId}`)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'game_rooms', filter: `id=eq.${roomId}` }, payload => {
+      console.log('Received game update:', payload.new);
+      setBoard(payload.new.board);
+      setCurrentTurn(payload.new.current_turn);
+      
+      if (payload.new.status === 'completed' && !gameEnded) {
+        setGameEnded(true);
+        const result = payload.new.result === playerId ? 'win' : (payload.new.result === 'draw' ? 'draw' : 'lose');
+        onGameEnd(result);
+      }
+    })
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(subscription);
+  };
+}, [roomId, playerId, onGameEnd, gameEnded]);
 
   useEffect(() => {
     const fetchGameState = async () => {
@@ -26,9 +53,10 @@ const TicTacToe: React.FC<TicTacToeProps> = ({ roomId, playerId, onGameEnd, onEn
       if (error) {
         console.error('Error fetching game state:', error);
       } else {
+        console.log('Fetched game state:', data);
         setBoard(data.board || Array(9).fill(null));
-        setCurrentPlayer(data.current_player);
-        setOpponentId(data.creator_id === playerId ? data.player2_id : data.creator_id);
+        setCreatorId(data.creator_id);
+        setPlayerSymbol(data.creator_id === playerId ? 'X' : 'O');
       }
     };
 
@@ -37,8 +65,8 @@ const TicTacToe: React.FC<TicTacToeProps> = ({ roomId, playerId, onGameEnd, onEn
     const subscription = supabase
       .channel(`room:${roomId}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'game_rooms', filter: `id=eq.${roomId}` }, payload => {
+        console.log('Received game update:', payload.new);
         setBoard(payload.new.board);
-        setCurrentPlayer(payload.new.current_player);
         
         if (payload.new.result) {
           const result = payload.new.result === playerId ? 'win' : (payload.new.result === 'draw' ? 'draw' : 'lose');
@@ -53,25 +81,28 @@ const TicTacToe: React.FC<TicTacToeProps> = ({ roomId, playerId, onGameEnd, onEn
   }, [roomId, playerId, onGameEnd]);
 
   const handleClick = async (i: number) => {
-    if (currentPlayer !== playerId || board[i]) return;
+    if (!isPlayerTurn || board[i] || gameEnded) return;
 
     const newBoard = [...board];
-    newBoard[i] = playerId === currentPlayer ? 'X' : 'O';
+    newBoard[i] = playerSymbol;
 
     const winner = calculateWinner(newBoard);
     const isDraw = !newBoard.includes(null);
+
+    console.log('Updating game state:', { board: newBoard, winner, isDraw });
 
     const { error } = await supabase
       .from('game_rooms')
       .update({
         board: newBoard,
-        current_player: opponentId,
         result: winner ? playerId : (isDraw ? 'draw' : null)
       })
       .eq('id', roomId);
 
     if (error) {
       console.error('Error updating game state:', error);
+    } else {
+      setBoard(newBoard);
     }
   };
 
@@ -99,7 +130,7 @@ const TicTacToe: React.FC<TicTacToeProps> = ({ roomId, playerId, onGameEnd, onEn
     <Button 
       onClick={() => handleClick(i)} 
       className="h-16 w-16 text-2xl"
-      disabled={currentPlayer !== playerId || board[i] !== null}
+      disabled={!isPlayerTurn || board[i] !== null || gameEnded}
     >
       {board[i]}
     </Button>
@@ -125,7 +156,10 @@ const TicTacToe: React.FC<TicTacToeProps> = ({ roomId, playerId, onGameEnd, onEn
         </div>
       </div>
       <p className="text-lg font-semibold mb-4">
-        {currentPlayer === playerId ? "Your turn" : "Opponent's turn"}
+        {gameEnded ? "Game Over" : (isPlayerTurn ? "Your turn" : "Opponent's turn")}
+      </p>
+      <p className="text-md mb-4">
+        You are playing as: {playerSymbol}
       </p>
       <Button onClick={onEndGame} className="bg-red-500 hover:bg-red-600 text-white">
         End Game

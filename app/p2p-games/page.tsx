@@ -10,12 +10,15 @@ import TicTacToe from '@/components/TicTacToe'
 import GameLobby from '@/components/GameLobby'
 import GameChat from '@/components/GameChat'
 import { showToast } from '@/lib/utils'
+import { debounce } from 'lodash';
+import Image from 'next/image'
 
 interface Game {
   id: string;
   name: string;
   description: string;
   onlinePlayers: number;
+  imageUrl: string;
 }
 
 interface GameRoom {
@@ -122,149 +125,138 @@ export default function P2PGamesPage() {
   }
 
   const handleJoinGame = async (roomId: string, wagerAmount: number) => {
-    
-    if (wagerAmount > balance) {
-      showToast('Insufficient balance', 'You do not have enough XCoin to join this game', 'destructive')
-      return
-    }
+    const debouncedHandleGameEnd = debounce(handleGameEnd, 1000, { leading: true, trailing: false });
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      showToast('Error', 'User not authenticated', 'destructive')
-      return
-    }
-
-    console.log('Joining game:', roomId, 'with wager:', wagerAmount)
-
-    const { data, error } = await supabase
-      .from('game_rooms')
-      .update({ 
-        player2_id: user.id, 
-        status: 'in_progress',
-        current_player: user.id  // Set the initial player to the one who joined
-      })
-      .eq('id', roomId)
-      .select()
-      .single()
-
-    if (error) {
-      console.error('Error joining game:', error)
-      showToast('Error', 'Failed to join game', 'destructive')
-    } else if (data) {
-      console.log('Successfully joined game:', data)
-      setCurrentRoomId(roomId)
-      setCurrentWager(wagerAmount)
-      setIsPlaying(true)
-      setCurrentRoom(data)
-
-      // Deduct wager amount immediately
-      const newBalance = balance - wagerAmount
-      updateBalance(newBalance)
-      const { error: walletError } = await supabase
-        .from('wallets')
-        .update({ balance: newBalance })
-        .eq('user_id', user.id)
-
-      if (walletError) {
-        console.error('Error updating wallet:', walletError)
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        showToast('Error', 'User not authenticated', 'destructive');
+        return;
       }
-
-      // Fetch and update player names
-      const creatorName = await getPlayerName(data.creator_id)
-      const player2Name = await getPlayerName(user.id)
-      setCreatorName(creatorName)
-      setPlayer2Name(player2Name)
-    } else {
-      console.error('No data returned when joining game')
-      showToast('Error', 'Failed to join game', 'destructive')
-    }
-  }
-
-  const handleGameEnd = async (result: 'win' | 'lose' | 'draw') => {
-    if (!currentRoom) return
-
-    let winnerUserId: string | null = null
-    let loserUserId: string | null = null
-
-    if (result === 'win') {
-      winnerUserId = playerId
-      loserUserId = currentRoom.creator_id === playerId ? currentRoom.player2_id : currentRoom.creator_id
-      showToast('Congratulations!', `You won ${currentWager} XCoin!`, 'default')
-    } else if (result === 'lose') {
-      loserUserId = playerId
-      winnerUserId = currentRoom.creator_id === playerId ? currentRoom.player2_id : currentRoom.creator_id
-      showToast('Better luck next time', `You lost ${currentWager} XCoin`, 'destructive')
-    } else {
-      showToast('It\'s a draw!', 'Your wager has been returned', 'default')
-    }
-
-    if (winnerUserId && loserUserId) {
-      // Update winner's balance
-      const { data: winnerData, error: winnerError } = await supabase
+  
+      // Fetch current balance
+      const { data: currentWallet, error: fetchError } = await supabase
         .from('wallets')
         .select('balance')
-        .eq('user_id', winnerUserId)
-        .single()
+        .eq('user_id', user.id)
+        .single();
+  
+      if (fetchError || !currentWallet) {
+        console.error('Error fetching wallet:', fetchError);
+        showToast('Error', 'Failed to fetch wallet', 'destructive');
+        return;
+      }
+  
+      if (currentWallet.balance < wagerAmount) {
+        showToast('Insufficient balance', 'You do not have enough XCoin to join this game', 'destructive');
+        return;
+      }
+  
+      const newBalance = balance - wagerAmount;
+  const { error: walletUpdateError } = await supabase
+    .from('wallets')
+    .update({ balance: newBalance })
+    .eq('user_id', user.id);
 
-      if (winnerError) {
-        console.error('Error fetching winner balance:', winnerError)
-      } else if (winnerData) {
-        const newWinnerBalance = winnerData.balance + currentWager * 2
-        const { error: updateError } = await supabase
+  if (walletUpdateError) {
+    console.error('Error updating wallet:', walletUpdateError);
+    showToast('Error', 'Failed to update wallet', 'destructive');
+    return;
+  }
+
+  // Update local balance state
+  updateBalance(newBalance);
+  
+      // Join the game room
+      const { data, error } = await supabase
+        .from('game_rooms')
+        .update({ 
+          player2_id: user.id, 
+          status: 'in_progress'
+        })
+        .eq('id', roomId)
+        .select()
+        .single();
+  
+      if (error) {
+        console.error('Error joining game:', error);
+        showToast('Error', 'Failed to join game', 'destructive');
+        return;
+      }
+  
+      console.log('Successfully joined game:', data);
+      setCurrentRoomId(roomId);
+      setCurrentWager(wagerAmount);
+      setIsPlaying(true);
+      setCurrentRoom(data);
+  
+      showToast('Success', `You've joined the game and wagered ${wagerAmount} XCoin`, 'default');
+    } catch (error) {
+      console.error('Unexpected error in handleJoinGame:', error);
+      showToast('Error', 'An unexpected error occurred', 'destructive');
+    }
+  };
+  
+  const handleGameEnd = async (result: 'win' | 'lose' | 'draw') => {
+    try {
+      if (!currentRoom) {
+        console.error('No current room found');
+        return;
+      }
+  
+      console.log('Game ended. Result:', result);
+      console.log('Current room:', currentRoom);
+      console.log('Current wager:', currentWager);
+  
+      if (result === 'win') {
+        // Fetch current balance for winner
+        const { data: winnerWallet, error: fetchError } = await supabase
+          .from('wallets')
+          .select('balance')
+          .eq('user_id', playerId)
+          .single();
+  
+        if (fetchError || !winnerWallet) {
+          console.error('Error fetching winner wallet:', fetchError);
+          return;
+        }
+  
+        console.log('Winner\'s current balance:', winnerWallet.balance);
+  
+        const winningAmount = currentWager;
+        const newWinnerBalance = winnerWallet.balance + winningAmount;
+  
+        console.log('Winning amount:', winningAmount);
+        console.log('New balance for winner:', newWinnerBalance);
+  
+        // Update winner's wallet in database
+        const { error: winnerUpdateError } = await supabase
           .from('wallets')
           .update({ balance: newWinnerBalance })
-          .eq('user_id', winnerUserId)
-
-        if (updateError) {
-          console.error('Error updating winner balance:', updateError)
-        } else if (winnerUserId === playerId) {
-          updateBalance(newWinnerBalance)
+          .eq('user_id', playerId);
+  
+        if (winnerUpdateError) {
+          console.error('Error updating winner\'s wallet:', winnerUpdateError);
+          return;
         }
+  
+        console.log('Winner\'s wallet updated successfully');
+  
+        // Update local balance state
+        updateBalance(newWinnerBalance);
+        showToast('Congratulations!', `You won ${winningAmount} XCoin!`, 'default');
+      } else if (result === 'lose') {
+        showToast('Better luck next time', `You lost ${currentWager} XCoin`, 'destructive');
+      } else {
+        showToast('It\'s a draw!', 'No XCoin was exchanged', 'default');
       }
-
-      // No need to update loser's balance as it was already deducted when joining the game
-    } else if (result === 'draw') {
-      // Return wager to both players in case of a draw
-      const players = [currentRoom.creator_id, currentRoom.player2_id]
-      for (const player of players) {
-        if (player) {
-          const { data: playerData, error: playerError } = await supabase
-            .from('wallets')
-            .select('balance')
-            .eq('user_id', player)
-            .single()
-
-          if (playerError) {
-            console.error('Error fetching player balance:', playerError)
-          } else if (playerData) {
-            const newBalance = playerData.balance + currentWager
-            const { error: updateError } = await supabase
-              .from('wallets')
-              .update({ balance: newBalance })
-              .eq('user_id', player)
-
-            if (updateError) {
-              console.error('Error updating player balance:', updateError)
-            } else if (player === playerId) {
-              updateBalance(newBalance)
-            }
-          }
-        }
-      }
+  
+      endGame();
+    } catch (error) {
+      console.error('Unexpected error in handleGameEnd:', error);
+      showToast('Error', 'An unexpected error occurred', 'destructive');
     }
-
-    // Update game room status
-    const { error: roomUpdateError } = await supabase
-      .from('game_rooms')
-      .update({ status: 'completed', result: result === 'draw' ? 'draw' : winnerUserId })
-      .eq('id', currentRoomId)
-
-    if (roomUpdateError) {
-      console.error('Error updating game room status:', roomUpdateError)
-    }
-
-    endGame()
-  }
+  };
 
   const endGame = () => {
     setIsPlaying(false)
@@ -294,18 +286,20 @@ export default function P2PGamesPage() {
   if (loading) {
     return (
       <div className="container mx-auto p-4">
-        <h1 className="text-2xl font-bold mb-4">P2P Games</h1>
-        <p className="mb-4">Your balance: {balance.toFixed(2)} XCoin</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <Skeleton className="h-8 w-48 mb-4" /> {/* P2P Games title */}
+        <Skeleton className="h-6 w-64 mb-4" /> {/* Balance */}
+        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(6)].map((_, index) => (
-            <Card key={index}>
+            <Card key={index} className="flex flex-col">
               <CardHeader>
-                <Skeleton className="h-4 w-[200px]" />
+                <Skeleton className="h-6 w-3/4" /> {/* Game title */}
               </CardHeader>
-              <CardContent>
-                <Skeleton className="h-4 w-[150px] mb-2" />
-                <Skeleton className="h-4 w-[100px] mb-2" />
-                <Skeleton className="h-8 w-[100px]" />
+              <CardContent className="flex-grow flex flex-col">
+                <Skeleton className="w-full h-40 mb-2" /> {/* Image skeleton */}
+                <Skeleton className="h-4 w-full mb-2" /> {/* Description line 1 */}
+                <Skeleton className="h-4 w-3/4 mb-2" /> {/* Description line 2 */}
+                <Skeleton className="h-4 w-1/2 mb-4" /> {/* Online players */}
+                <Skeleton className="h-10 w-full mt-auto" /> {/* Button */}
               </CardContent>
             </Card>
           ))}
@@ -313,6 +307,7 @@ export default function P2PGamesPage() {
       </div>
     )
   }
+
 
   if (isPlaying && selectedGame && currentRoom) {
     return (
@@ -364,16 +359,27 @@ export default function P2PGamesPage() {
           onJoinGame={handleJoinGame} 
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {games.map((game) => (
-            <Card key={game.id}>
+            <Card key={game.id} className="flex flex-col">
               <CardHeader>
                 <CardTitle>{game.name}</CardTitle>
               </CardHeader>
-              <CardContent>
-                <p>{game.description}</p>
-                <p className="mt-2">Online players: {game.onlinePlayers}</p>
-                <Button onClick={() => setSelectedGame(game)} className="mt-4">Select Game</Button>
+              <CardContent className="flex-grow flex flex-col">
+                <div className="relative w-full h-40 mb-2">
+                  <Image
+                    src={game.imageUrl}
+                    alt={game.name}
+                    layout="fill"
+                    objectFit="cover"
+                    className="rounded-md"
+                  />
+                </div>
+                <p className="mb-2">{game.description}</p>
+                <p className="mb-2">Online players: {game.onlinePlayers}</p>
+                <Button onClick={() => setSelectedGame(game)} className="mt-auto">
+                  Select Game
+                </Button>
               </CardContent>
             </Card>
           ))}
