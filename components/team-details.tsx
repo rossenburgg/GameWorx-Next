@@ -45,9 +45,9 @@ export function TeamDetails({ id }: { id: string }) {
     fetchTeamAndCheckAdmin()
   }, [id])
 
-  const handleManageMembers = () => {
-    router.push(`/teams/${id}/members`)
-  }
+  // const handleManageMembers = () => {
+  //   router.push(`/teams/${id}/members`)
+  // }
 
   if (loading) {
     return <DetailSkeleton />

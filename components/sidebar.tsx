@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Home, Trophy, Users, BarChart2, LayoutDashboard, Gamepad2Icon, Wallet2, Wallet2Icon, VideoIcon, PiggyBankIcon, TicketIcon  } from 'lucide-react'
+import { Home, Trophy, Users, BarChart2, LayoutDashboard, Gamepad2Icon, Wallet2Icon, VideoIcon, PiggyBankIcon, TicketIcon  } from 'lucide-react'
 import { BuildingStorefrontIcon } from '@heroicons/react/24/solid'
 
 const sidebarItems = [

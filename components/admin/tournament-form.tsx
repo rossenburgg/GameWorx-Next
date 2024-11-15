@@ -5,20 +5,23 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
+type Tournament = {
+  id: number;
+  name: string;
+  date: string;
+  prize_pool: number;
+  max_participants: number;
+  current_participants: number;
+  status: string;
+  image_url: string;
+};
+
 type TournamentFormProps = {
-  tournament?: {
-    id: number;
-    name: string;
-    date: string;
-    prize_pool: number;
-    max_participants: number;
-    current_participants: number;
-    status: string;
-    image_url: string;
-  };
-  onSubmit: (tournament: Omit<TournamentFormProps['tournament'], 'id' | 'current_participants'>) => void;
+  tournament?: Tournament;
+  onSubmit: (tournament: Omit<Tournament, 'id' | 'current_participants'>) => Promise<void>;
   onCancel: () => void;
 }
+
 
 export default function TournamentForm({ tournament, onSubmit, onCancel }: TournamentFormProps) {
   const [name, setName] = useState(tournament?.name || '')
@@ -37,7 +40,7 @@ export default function TournamentForm({ tournament, onSubmit, onCancel }: Tourn
       max_participants: Number(maxParticipants),
       status,
       image_url: imageUrl
-    })
+    } as Omit<Tournament, 'id' | 'current_participants'>)
   }
 
   return (

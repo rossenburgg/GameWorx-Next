@@ -1,4 +1,3 @@
-// app/api/update-user/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { StreamChat } from 'stream-chat'
 
@@ -21,7 +20,7 @@ export async function POST(request: NextRequest) {
       set: {
         name: username,
         role: 'user',
-        deleted_at: null // This should undelete the user
+        deleted_at: undefined // Changed from null to undefined
       }
     })
 

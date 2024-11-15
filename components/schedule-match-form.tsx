@@ -65,7 +65,7 @@ export function ScheduleMatchForm() {
 
     const scheduledDateTime = new Date(`${date}T${time}`)
 
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('matches')
       .insert({
         team1_id: team1,

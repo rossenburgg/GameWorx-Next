@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { LoginModal } from './login-modal'
-import { LayoutDashboard, LogOut, Menu, User } from 'lucide-react'
+import { LayoutDashboard, LogOut, User } from 'lucide-react'
 import { NotificationIcon } from './NotificationIcon'
 
 export function UserNav() {

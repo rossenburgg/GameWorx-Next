@@ -52,23 +52,26 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    let streamChatId = profile.stream_chat_id
-
+    if (!profile) {
+      return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
+    }
+    
+    let streamChatId = profile.stream_chat_id;
+    
     if (!streamChatId) {
-      streamChatId = `stream_${userId}`
+      streamChatId = `stream_${userId}`;
       
       // Update the profile with the new Stream Chat ID
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ stream_chat_id: streamChatId })
-        .eq('id', userId)
-
+        .eq('id', userId);
+    
       if (updateError) {
-        console.error('Error updating profile:', updateError)
-        return NextResponse.json({ error: 'Failed to update user profile' }, { status: 500 })
+        console.error('Error updating profile:', updateError);
+        return NextResponse.json({ error: 'Failed to update user profile' }, { status: 500 });
       }
     }
-
     // Upsert the user in Stream Chat
     try {
       await serverClient.upsertUser({

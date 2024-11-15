@@ -111,7 +111,7 @@ export function UserDashboard() {
               </TableBody>
             </Table>
           ) : (
-            <p>You haven't registered for any events yet.</p>
+            <p>You haven`&apos;`t registered for any events yet.</p>
           )}
         </CardContent>
       </Card>
@@ -143,7 +143,7 @@ export function UserDashboard() {
               </TableBody>
             </Table>
           ) : (
-            <p>You don't have any upcoming matches.</p>
+            <p>You don`&apos;`t have any upcoming matches.</p>
           )}
         </CardContent>
       </Card>

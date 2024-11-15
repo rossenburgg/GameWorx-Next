@@ -1,4 +1,3 @@
-// app/api/p2p-transfer/route.ts
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
@@ -51,6 +50,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Error querying sender' }, { status: 500 });
     }
 
+    if (!senderData) {
+      console.error('Sender data not found');
+      return NextResponse.json({ success: false, error: 'Sender data not found' }, { status: 404 });
+    }
+
+    const senderEmail = senderData.email;
+
     // Perform the transfer
     const { data, error } = await supabase.rpc('transfer_xcoin', {
       p_sender_id: senderId,
@@ -71,7 +77,7 @@ export async function POST(request: Request) {
       .insert([
         { 
           user_id: recipientId, 
-          message: `You received ${amount} Xcoin from ${senderData.email}` 
+          message: `You received ${amount} Xcoin from ${senderEmail}` 
         },
         { 
           user_id: senderId, 

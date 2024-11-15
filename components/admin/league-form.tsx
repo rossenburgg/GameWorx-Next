@@ -1,26 +1,27 @@
-// components/admin/league-form.tsx
 import { useState } from 'react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
+type League = {
+  id: number;
+  name: string;
+  game: string;
+  status: string;
+  prize_pool: number;
+  team_size: string;
+  participants: string;
+  organizer: { name: string; avatar: string };
+  end_date: string;
+  logo_url: string;
+  platform: string;
+  type: string;
+}
+
 type LeagueFormProps = {
-  league?: {
-    id: number;
-    name: string;
-    game: string;
-    status: string;
-    prize_pool: number;
-    team_size: string;
-    participants: string;
-    organizer: { name: string; avatar: string };
-    end_date: string;
-    logo_url: string;
-    platform: string;
-    type: string;
-  };
-  onSubmit: (league: Omit<LeagueFormProps['league'], 'id'>) => void;
+  league?: League;
+  onSubmit: (league: Omit<League, 'id'>) => Promise<void>;
   onCancel: () => void;
 }
 
@@ -38,9 +39,9 @@ export function LeagueForm({ league, onSubmit, onCancel }: LeagueFormProps) {
   const [platform, setPlatform] = useState(league?.platform || '')
   const [type, setType] = useState(league?.type || '')
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    onSubmit({
+    await onSubmit({
       name,
       game,
       status,
@@ -54,6 +55,7 @@ export function LeagueForm({ league, onSubmit, onCancel }: LeagueFormProps) {
       type
     })
   }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>

@@ -9,7 +9,7 @@ import { PrivateDiscordAccount } from '@/components/PrivateDiscordAccount'
 import { Cashback } from '@/components/Cashback'
 import { useToast } from "@/hooks/use-toast"
 import { StreamChatComponent } from '@/components/StreamChatComponent'
-import { MessageCircleIcon } from 'lucide-react'
+import { MessageCircleIcon, X } from 'lucide-react'  // Added X here
 import { Skeleton } from '@/components/ui/skeleton'
 
 
@@ -19,7 +19,10 @@ interface User {
   user_metadata: {
     avatar_url?: string
     username?: string
+    name?: string    // Added name if you're using it
   }
+  // If username is directly on the user object, add it here
+  username?: string  
 }
 
 export default function DailyRewardsPage() {
@@ -190,43 +193,43 @@ export default function DailyRewardsPage() {
             <FreeCaseDrop />
           </div>
           <div className="flex-grow overflow-hidden">
-            <StreamChatComponent 
-              user={{
-                id: currentUser.id,
-                name: currentUser.username || currentUser.email,
-                image: currentUser.avatar_url
-              }}
-            />
+          <StreamChatComponent 
+          user={{
+            id: currentUser.id,
+            name: currentUser.user_metadata?.username || currentUser.email,
+            image: currentUser.user_metadata?.avatar_url
+          }}
+        />
           </div>
         </div>
       )}
-      {isMobile && (
-        <>
-          <button
-            onClick={() => setIsChatOpen(!isChatOpen)}
-            className="fixed bottom-4 right-4 bg-purple-600 p-3 rounded-full shadow-lg z-10"
-          >
-            <MessageCircleIcon className="text-white text-2xl" />
-          </button>
-          {isChatOpen && (
-            <div className="fixed bottom-0 left-0 right-0 h-1/2 bg-gray-800 z-20 p-4 shadow-lg">
-              <button
-                onClick={() => setIsChatOpen(false)}
-                className="absolute top-2 right-2 text-white p-2"
-              >
-                <X size={24} />
-              </button>
-              <StreamChatComponent 
-                user={{
-                  id: currentUser.id,
-                  name: currentUser.username || currentUser.email,
-                  image: currentUser.avatar_url
-                }}
-              />
-            </div>
-          )}
-        </>
-      )}
+     {isMobile && (
+  <>
+    <button
+      onClick={() => setIsChatOpen(!isChatOpen)}
+      className="fixed bottom-4 right-4 bg-purple-600 p-3 rounded-full shadow-lg z-10"
+    >
+      <MessageCircleIcon className="text-white text-2xl" />
+    </button>
+    {isChatOpen && (
+      <div className="fixed bottom-0 left-0 right-0 h-1/2 bg-gray-800 z-20 p-4 shadow-lg">
+        <button
+          onClick={() => setIsChatOpen(false)}
+          className="absolute top-2 right-2 text-white p-2"
+        >
+          <X size={24} />
+        </button>
+        <StreamChatComponent 
+          user={{
+            id: currentUser.id,
+            name: currentUser.user_metadata?.username || currentUser.email,
+            image: currentUser.user_metadata?.avatar_url
+          }}
+        />
+      </div>
+    )}
+  </>
+)}
     </div>
   )
 }

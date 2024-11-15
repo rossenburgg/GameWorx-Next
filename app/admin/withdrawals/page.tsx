@@ -14,9 +14,17 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
+interface Withdrawal {
+  id: string;
+  user_id: string;
+  amount: number;
+  status: string;
+  created_at: string;
+}
+
 export default function AdminWithdrawalsPage() {
-  const [withdrawals, setWithdrawals] = useState([])
-  const { toast } = useToast()
+  const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([])
+    const { toast } = useToast()
 
   useEffect(() => {
     fetchWithdrawals()
@@ -27,11 +35,11 @@ export default function AdminWithdrawalsPage() {
       .from('withdrawal_requests')
       .select('*')
       .order('created_at', { ascending: false })
-
+  
     if (error) {
       console.error('Error fetching withdrawals:', error)
     } else {
-      setWithdrawals(data)
+      setWithdrawals(data as Withdrawal[])
     }
   }
 

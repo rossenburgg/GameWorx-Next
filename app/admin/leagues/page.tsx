@@ -8,17 +8,19 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { supabase } from '@/lib/supabase'
 
 type League = {
-    id: number;
-    name: string;
-    game: string;
-    status: string;
-    prize_pool: number;
-    team_size: string;
-    participants: string;
-    organizer: { name: string; avatar: string };
-    end_date: string;
-    logo_url: string;
-  }
+  id: number;
+  name: string;
+  game: string;
+  status: string;
+  prize_pool: number;
+  team_size: string;
+  participants: string;
+  organizer: { name: string; avatar: string };
+  end_date: string;
+  logo_url: string;
+  platform: string;
+  type: string;
+}
 
 export default function LeaguesAdmin() {
   const [leagues, setLeagues] = useState<League[]>([])
@@ -34,10 +36,10 @@ export default function LeaguesAdmin() {
       .from('leagues')
       .select('*')
     if (error) console.error('Error fetching leagues:', error)
-    else setLeagues(data)
+    else setLeagues(data || [])
   }
 
-  const handleCreate = async (newLeague: Omit<League, 'id'>) => {
+  const handleCreate = async (newLeague: Omit<League, 'id'>): Promise<void> => {
     const { data, error } = await supabase
       .from('leagues')
       .insert([newLeague])
@@ -49,17 +51,15 @@ export default function LeaguesAdmin() {
     }
   }
 
- 
-  const handleEdit = async (updatedLeague: Omit<League, 'id'>) => {
-    if (!editingLeague) return; 
+  const handleEdit = async (updatedLeague: League): Promise<void> => {
     const { error } = await supabase
       .from('leagues')
       .update(updatedLeague)
-      .eq('id', editingLeague.id) 
+      .eq('id', updatedLeague.id) 
     if (error) {
       console.error('Error updating league:', error)
     } else {
-      setLeagues(leagues.map(l => l.id === editingLeague.id ? { ...l, ...updatedLeague } : l))
+      setLeagues(leagues.map(l => l.id === updatedLeague.id ? updatedLeague : l))
       setIsDialogOpen(false)
       setEditingLeague(null)
     }
@@ -83,55 +83,61 @@ export default function LeaguesAdmin() {
         <Button onClick={() => setIsDialogOpen(true)}>Create New League</Button>
       </div>
       <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>ID</TableHead>
-          <TableHead>Name</TableHead>
-          <TableHead>Game</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Prize Pool</TableHead>
-          <TableHead>Team Size</TableHead>
-          <TableHead>Participants</TableHead>
-          <TableHead>Organizer</TableHead>
-          <TableHead>End Date</TableHead>
-          <TableHead>Actions</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {leagues.map((league) => (
-          <TableRow key={league.id}>
-            <TableCell>{league.id}</TableCell>
-            <TableCell>{league.name}</TableCell>
-            <TableCell>{league.game}</TableCell>
-            <TableCell>{league.status}</TableCell>
-            <TableCell>${league.prize_pool?.toLocaleString()}</TableCell>
-            <TableCell>{league.team_size}</TableCell>
-            <TableCell>{league.participants}</TableCell>
-            <TableCell>{league.organizer?.name}</TableCell>
-            <TableCell>{league.end_date}</TableCell>
-            <TableCell>
-              <Button variant="outline" className="mr-2" onClick={() => {
-                setEditingLeague(league)
-                setIsDialogOpen(true)
-              }}>Edit</Button>
-              <Button variant="destructive" onClick={() => handleDelete(league.id)}>Delete</Button>
-            </TableCell>
+        <TableHeader>
+          <TableRow>
+            <TableHead>ID</TableHead>
+            <TableHead>Name</TableHead>
+            <TableHead>Game</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Prize Pool</TableHead>
+            <TableHead>Team Size</TableHead>
+            <TableHead>Participants</TableHead>
+            <TableHead>Organizer</TableHead>
+            <TableHead>End Date</TableHead>
+            <TableHead>Actions</TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {leagues.map((league) => (
+            <TableRow key={league.id}>
+              <TableCell>{league.id}</TableCell>
+              <TableCell>{league.name}</TableCell>
+              <TableCell>{league.game}</TableCell>
+              <TableCell>{league.status}</TableCell>
+              <TableCell>${league.prize_pool?.toLocaleString()}</TableCell>
+              <TableCell>{league.team_size}</TableCell>
+              <TableCell>{league.participants}</TableCell>
+              <TableCell>{league.organizer?.name}</TableCell>
+              <TableCell>{league.end_date}</TableCell>
+              <TableCell>
+                <Button variant="outline" className="mr-2" onClick={() => {
+                  setEditingLeague(league)
+                  setIsDialogOpen(true)
+                }}>Edit</Button>
+                <Button variant="destructive" onClick={() => handleDelete(league.id)}>Delete</Button>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
 
-    <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingLeague ? 'Edit League' : 'Create New League'}</DialogTitle>
           </DialogHeader>
           <LeagueForm 
             league={editingLeague || undefined}
-            onSubmit={editingLeague ? handleEdit : handleCreate}
+            onSubmit={async (league) => {
+              if (editingLeague) {
+                await handleEdit({...league, id: editingLeague.id});
+              } else {
+                await handleCreate(league);
+              }
+            }}
             onCancel={() => {
-              setIsDialogOpen(false)
-              setEditingLeague(null)
+              setIsDialogOpen(false);
+              setEditingLeague(null);
             }}
           />
         </DialogContent>

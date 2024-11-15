@@ -12,7 +12,7 @@ interface TicTacToeProps {
 const TicTacToe: React.FC<TicTacToeProps> = ({ roomId, playerId, onGameEnd, onEndGame }) => {
   const [board, setBoard] = useState(Array(9).fill(null));
   const [playerSymbol, setPlayerSymbol] = useState<'X' | 'O' | null>(null);
-  const [creatorId, setCreatorId] = useState<string | null>(null);
+  const [ setCreatorId] = useState<string | null>(null);
   const [gameEnded, setGameEnded] = useState(false);
   
   const isPlayerTurn = useMemo(() => {
